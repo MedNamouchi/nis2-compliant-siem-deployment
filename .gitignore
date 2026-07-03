@@ -1,0 +1,23 @@
+# Secrets and credentials - never commit
+*.pem
+*.key
+*password*
+*secret*
+wazuh-install-files.tar
+*.env
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Real client-identifying data (internal working notes, not for the public repo)
+/private-notes/
