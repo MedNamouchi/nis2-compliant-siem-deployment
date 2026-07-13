@@ -1,0 +1,343 @@
+<!--
+  ================================================================
+  Wazuh Custom Rules — MikroTik (Production)
+  ================================================================
+  Rule ID ranges:
+    100200–100207 : Firewall
+    100300–100303 : Authentication
+    100400–100404 : System (reboot, config)
+    100500–100501 : Resource monitoring
+    100600–100601 : Agent monitoring
+    100700–100701 : Advanced brute force detection
+    100800–100801 : Multi-source correlation
+
+  PENDING ACTION ITEMS (search for "ACTION REQUIRED" below):
+    - Rule 100203: needs the client's main/critical router hostname
+    - Rule 100207: needs the client's WireGuard interface name
+    - Rule 100404: known risk, suppresses ANY "changed by scheduler"
+      event, not just WireGuard — consider tightening once the
+      interface name is known
+  Router hostname and WireGuard interface name to be provided once
+  configured on the client's infrastructure.
+
+  File location (Wazuh Manager): /var/ossec/etc/rules/local_rules.xml
+  ================================================================
+-->
+
+<!-- ============================================================
+     FIREWALL RULES
+     ============================================================ -->
+<group name="mikrotik,firewall,">
+
+  <rule id="100200" level="3">
+    <decoded_as>mikrotik-firewall</decoded_as>
+    <description>MikroTik: Firewall event on router $(router_name)</description>
+    <group>gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+  </rule>
+
+  <rule id="100202" level="8">
+    <if_sid>100200</if_sid>
+    <field name="fw_action">drop</field>
+    <description>MikroTik: Blocked connection $(src_ip):$(src_port) -> $(dst_ip):$(dst_port) | Router: $(router_name)</description>
+    <group>gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+  </rule>
+
+  <!--
+    ACTION REQUIRED: replace ROUTER_NAME_PLACEHOLDER with the actual
+    hostname of the client's critical/main router once configured.
+    This rule is inert (will never match) until this value is set.
+  -->
+  <rule id="100203" level="5">
+    <if_sid>100200</if_sid>
+    <field name="router_name">ROUTER_NAME_PLACEHOLDER</field>
+    <description>MikroTik: Event on MAIN ROUTER: $(rule_name)</description>
+    <group>gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+  </rule>
+
+  <rule id="100205" level="10" frequency="10" timeframe="30">
+    <if_matched_sid>100200</if_matched_sid>
+    <same_source_ip/>
+    <description>MikroTik: Potential PORT SCAN detected from $(src_ip) | Router: $(router_name)</description>
+    <group>recon,port_scan,gdpr_IV_35.7.d,nist_800_53_SI.4,pci_dss_11.4,</group>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+  </rule>
+
+  <rule id="100206" level="9">
+    <if_sid>100200</if_sid>
+    <field name="src_ip" type="pcre2">^(?!10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)(\d+\.\d+\.\d+\.\d+)</field>
+    <description>MikroTik: External inbound traffic $(src_ip) -> $(dst_ip):$(dst_port) | Router: $(router_name) | Interface: $(in_interface)</description>
+    <group>external_traffic,gdpr_IV_35.7.d,nist_800_53_SI.4,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+  </rule>
+
+  <!--
+    ACTION REQUIRED: replace VPN_INTERFACE_PLACEHOLDER with the actual
+    WireGuard interface name once configured on the client's router.
+  -->
+  <rule id="100207" level="6">
+    <if_sid>100200</if_sid>
+    <field name="in_interface">VPN_INTERFACE_PLACEHOLDER</field>
+    <description>MikroTik: Traffic via VPN interface VPN_INTERFACE_PLACEHOLDER | $(src_ip) -> $(dst_ip):$(dst_port) | Router: $(router_name)</description>
+    <group>vpn,gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<!-- ============================================================
+     AUTHENTICATION RULES
+     ============================================================ -->
+<group name="mikrotik,authentication,">
+
+  <!--
+    NOTE: overwrite="yes" cannot add an <if_sid> dependency that didn't
+    exist in the original native rule (Wazuh will warn and ignore this
+    specific field, keeping other overrides like level/match/description).
+    Verified harmless here: native rule 2501 (0020-syslog_rules.xml) has
+    no if_sid to begin with, so this has no effect on matching behavior.
+  -->
+  <rule id="2501" level="0" overwrite="yes">
+    <if_sid>2500</if_sid>
+    <match>login failure</match>
+    <description>Suppress default auth failure for MikroTik routers</description>
+  </rule>
+
+  <rule id="100300" level="3">
+    <decoded_as>mikrotik-auth-success</decoded_as>
+    <description>MikroTik: Successful login - user $(user) from $(srcip) via $(app) on router $(router_name)</description>
+    <group>authentication_success,gdpr_IV_35.7.d,nist_800_53_AC.7,pci_dss_10.2.5,</group>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <rule id="100301" level="5">
+    <if_sid>2501</if_sid>
+    <decoded_as>mikrotik-auth-failure</decoded_as>
+    <description>MikroTik: Login failure - user $(dstuser) from $(srcip) via $(app) on router $(router_name)</description>
+    <group>authentication_failed,gdpr_IV_35.7.d,nist_800_53_AC.7,pci_dss_10.2.4,</group>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <rule id="100302" level="10" frequency="5" timeframe="60">
+    <if_matched_sid>100301</if_matched_sid>
+    <same_source_ip/>
+    <description>MikroTik: Brute force attack - 5+ failures from $(srcip) on router $(router_name)</description>
+    <group>bruteforce,authentication_failures,gdpr_IV_35.7.d,gdpr_IV_32.2,nist_800_53_AC.7,pci_dss_10.2.4,pci_dss_11.4,</group>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100303" level="3">
+    <decoded_as>mikrotik-auth-logout</decoded_as>
+    <description>MikroTik: User $(dstuser) logged out from $(srcip) via $(app) on router $(router_name)</description>
+    <group>authentication_success,gdpr_IV_35.7.d,nist_800_53_AC.7,pci_dss_10.2.5,</group>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+  </rule>
+
+  <!--
+  KNOWN FALSE-POSITIVE ISSUE — disabled: fired too frequently on
+  legitimate logins that happened to follow unrelated failed attempts
+  (e.g. shared IP ranges, NAT). Revisit with refined correlation logic
+  (e.g. same user AND same IP, not just same IP) before re-enabling.
+
+  <rule id="100304" level="12">
+    <if_matched_sid>100301</if_matched_sid>
+    <same_source_ip/>
+    <description>MikroTik: Login SUCCESS after failures from $(srcip) on router $(router_name) — possible compromise!</description>
+    <group>authentication_success,bruteforce,gdpr_IV_35.7.d,gdpr_IV_32.2,nist_800_53_AC.7,pci_dss_10.2.4,</group>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+  -->
+
+</group>
+
+<!-- ============================================================
+     SYSTEM RULES (reboot, config change)
+     ============================================================ -->
+<group name="mikrotik,system,">
+
+  <rule id="100400" level="8">
+    <decoded_as>mikrotik-reboot-conscious</decoded_as>
+    <description>MikroTik: Router $(router_name) rebooted by $(user) via $(reboot_method) from $(srcip)</description>
+    <group>reboot,gdpr_IV_35.7.d,nist_800_53_CM.6,pci_dss_10.2.6,</group>
+    <mitre>
+      <id>T1529</id>
+    </mitre>
+  </rule>
+
+  <rule id="100401" level="12">
+    <decoded_as>mikrotik-reboot-unconscious</decoded_as>
+    <description>MikroTik: Router $(router_name) rebooted unexpectedly — no user triggered</description>
+    <group>reboot,gdpr_IV_35.7.d,nist_800_53_CM.6,pci_dss_10.2.6,</group>
+    <mitre>
+      <id>T1529</id>
+    </mitre>
+  </rule>
+
+  <rule id="100402" level="13">
+    <decoded_as>mikrotik-reboot-cause</decoded_as>
+    <description>MikroTik: Router $(router_name) crash cause — $(extra_data)</description>
+    <group>reboot,critical,gdpr_IV_35.7.d,nist_800_53_CM.6,pci_dss_10.2.6,</group>
+    <mitre>
+      <id>T1529</id>
+    </mitre>
+  </rule>
+
+  <rule id="100403" level="5">
+    <decoded_as>mikrotik-config-changed</decoded_as>
+    <description>MikroTik: Config changed on $(router_name) by $(user) via $(access_method) — $(extra_data)</description>
+    <group>config_changed,gdpr_IV_35.7.d,nist_800_53_CM.6,pci_dss_10.2.6,</group>
+    <mitre>
+      <id>T1562</id>
+    </mitre>
+  </rule>
+
+  <!--
+    ACTION REQUIRED / KNOWN RISK: this suppresses ANY event matching
+    "changed by scheduler" — not scoped to WireGuard specifically.
+    Once the WireGuard interface name is known, consider tightening
+    this rule to also check in_interface, so it only suppresses
+    scheduler-driven changes on that specific interface.
+  -->
+  <rule id="100404" level="0">
+    <if_sid>100403</if_sid>
+    <match>changed by scheduler</match>
+    <description>Suppress: Automatic WireGuard peer update by scheduler</description>
+  </rule>
+
+</group>
+
+<!-- ============================================================
+     RESOURCE MONITORING RULES
+     ============================================================ -->
+<group name="mikrotik,performance,">
+
+  <rule id="100500" level="8">
+    <decoded_as>mikrotik-resource-high</decoded_as>
+    <field name="resource_type">CPU</field>
+    <description>MikroTik: CPU HIGH on router $(router_name) — $(resource_value)% usage</description>
+    <group>performance,cpu,gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1496</id>
+    </mitre>
+  </rule>
+
+  <rule id="100501" level="8">
+    <decoded_as>mikrotik-resource-high</decoded_as>
+    <field name="resource_type">MEMORY</field>
+    <description>MikroTik: MEMORY HIGH on router $(router_name) — $(resource_value)% usage</description>
+    <group>performance,memory,gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1496</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<!-- ============================================================
+     AGENT MONITORING RULES
+     ============================================================ -->
+<group name="ossec,agent_disconnected,">
+
+  <rule id="100600" level="10">
+    <if_sid>506</if_sid>
+    <description>Wazuh agent stopped — pipeline may be affected</description>
+    <group>gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1562.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100601" level="12">
+    <if_sid>504</if_sid>
+    <description>Wazuh agent disconnected unexpectedly — pipeline may be affected</description>
+    <group>gdpr_IV_35.7.d,nist_800_53_AU.12,pci_dss_10.6.1,</group>
+    <mitre>
+      <id>T1562.001</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<!-- ============================================================
+     ADVANCED BRUTE FORCE DETECTION RULES
+     ============================================================ -->
+<group name="mikrotik,authentication,bruteforce,">
+
+  <rule id="100700" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>100301</if_matched_sid>
+    <same_field>dstuser</same_field>
+    <description>MikroTik: Password spraying — same user $(dstuser) attacked from multiple IPs</description>
+    <group>authentication_failures,gdpr_IV_35.7.d,nist_800_53_AC.7,pci_dss_10.2.4,pci_dss_11.4,</group>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="100701" level="14" frequency="10" timeframe="60">
+    <if_matched_sid>100301</if_matched_sid>
+    <description>MikroTik: Distributed attack — 10+ auth failures from multiple IPs and users</description>
+    <group>authentication_failures,distributed_attack,gdpr_IV_35.7.d,nist_800_53_AC.7,pci_dss_10.2.4,pci_dss_11.4,</group>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<!-- ============================================================
+     MULTI-SOURCE CORRELATION RULES
+     ============================================================ -->
+<group name="mikrotik,ssh,correlation,">
+
+  <!--
+  NOTE: depends on native Wazuh SSH rule IDs 5712 and 5763.
+  Verified present in this Wazuh version's default ruleset
+  (0095-sshd_rules.xml) before relying on this correlation.
+  -->
+  <rule id="100800" level="15" timeframe="300">
+    <if_matched_sid>100302</if_matched_sid>
+    <if_matched_sid>5712</if_matched_sid>
+    <same_source_ip/>
+    <description>CRITICAL: Same IP $(srcip) brute forcing MikroTik AND SSH — coordinated attack!</description>
+    <group>bruteforce,correlation,gdpr_IV_35.7.d,gdpr_IV_32.2,nist_800_53_AC.7,pci_dss_10.2.4,pci_dss_11.4,</group>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+  <rule id="100801" level="15" timeframe="300">
+    <if_matched_sid>100302</if_matched_sid>
+    <if_matched_sid>5763</if_matched_sid>
+    <same_source_ip/>
+    <description>CRITICAL: Same IP $(srcip) brute forcing MikroTik AND SSH — coordinated attack!</description>
+    <group>bruteforce,correlation,gdpr_IV_35.7.d,gdpr_IV_32.2,nist_800_53_AC.7,pci_dss_10.2.4,pci_dss_11.4,</group>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+</group>
