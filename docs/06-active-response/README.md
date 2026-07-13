@@ -4,7 +4,7 @@
 
 Adapt the Mattermost/email active-response scripts validated in-house at OFIR to this client's deployment: eliminate code duplication across scripts, remove hardcoded secrets, fix a dormant bug, and generalize logic that assumed OFIR-specific infrastructure.
 
-Scripts: [`configs/scripts/`](../../configs/scripts/).
+Scripts: [`config/scripts/`](../../config/scripts/).
 
 ## Design approach
 
