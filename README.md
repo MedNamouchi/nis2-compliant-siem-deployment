@@ -43,7 +43,7 @@ Wazuh Manager → Indexer → Dashboard
 │   ├── 01-infrastructure-hardening/
 │   ├── 02-graylog-setup/
 │   ├── 03-wazuh-setup/
-│   ├── 04-mikrotik-integration/
+│   ├── 04-wazuh-agent-integration/
 │   ├── 05-detection-engineering/
 │   ├── 06-active-response/
 │   └── 07-maintenance-procedures/
@@ -67,7 +67,7 @@ Each phase follows the same cycle: **implement → validate → document**. Noth
 | 01 — Infrastructure hardening | Done |
 | 02 — Graylog (MongoDB, Data Node, Server) | Done |
 | 03 — Wazuh (Manager, Indexer, Dashboard) | Done |
-| 04 — MikroTik integration | In progress |
+| 04 — wazuh-agent-integration | Done |
 | 05 — Detection engineering (MITRE ATT&CK mapping) | Not started |
 | 06 — Active response automation | Not started |
 | 07 — Maintenance procedures | Not started |
