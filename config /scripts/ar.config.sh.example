@@ -1,0 +1,30 @@
+#!/bin/bash
+# =============================================================================
+# Wazuh Active Response — Shared configuration (TEMPLATE)
+# =============================================================================
+# Copy this file to ar-config.sh on the Wazuh Manager and fill in real values.
+# ar-config.sh must NEVER be committed to version control — it is excluded
+# via .gitignore. Deploy it directly on the server with restrictive
+# permissions:
+#
+#   sudo cp ar-config.sh.example /var/ossec/etc/active-response/bin/ar-config.sh
+#   sudo chown root:wazuh /var/ossec/etc/active-response/bin/ar-config.sh
+#   sudo chmod 640 /var/ossec/etc/active-response/bin/ar-config.sh
+#
+# Every mikrotik-*-alert.sh / agent-down-alert.sh script sources this file
+# FIRST, then sources ar-common.sh.
+# =============================================================================
+
+# --- Notification channels ----------------------------------------------------
+MAIL_TO="soc-analyst@example.com"
+MATTERMOST_WEBHOOK="https://mattermost.example.com/hooks/CHANGE_ME"
+
+# --- Dashboard link included in alerts ---------------------------------------
+# Use the internal hostname established during infrastructure hardening
+# (see docs/00-scoping/) rather than a raw IP address, to avoid every
+# active-response script needing an update after any future re-addressing.
+WAZUH_DASHBOARD="https://siem-wazuh.internal"
+
+# --- Paths ---------------------------------------------------------------
+LOG_FILE="/var/ossec/logs/active-responses.log"
+ALERTS_LOG="/var/ossec/logs/alerts/alerts.log"
