@@ -4,7 +4,7 @@
 
 Adapt the MikroTik decoders and detection rules validated in-house at OFIR to this client's deployment: understand each rule's logic, remove client-inapplicable assumptions, standardize inconsistencies, and map detections to MITRE ATT&CK.
 
-Configuration files: [`configs/decoders/mikrotik-decoders.xml`](../../configs/decoders/mikrotik-decoders.xml), [`configs/rules/mikrotik-rules.xml`](../../configs/rules/mikrotik-rules.xml).
+Configuration files: [`config/decoders/mikrotik-decoders.xml`](../../config/decoders/mikrotik-decoders.xml), [`config/rules/mikrotik-rules.xml`](../../config/rules/mikrotik-rules.xml).
 
 ## Detection strategy
 
