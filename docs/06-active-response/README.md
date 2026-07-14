@@ -96,19 +96,63 @@ echo '{"command": "add", "parameters": {"alert": {"rule": {"id": "100300", ...},
 sudo tail -20 /var/ossec/logs/active-responses.log
 ```
 
+## Mail relay configuration
+ 
+Mail delivery requires a mail transfer agent (Postfix) configured with an outbound SMTP relay, since a server sending mail directly (without a relay) is typically rejected or flagged as spam by major providers due to poor IP reputation. A dedicated OFIR mailbox was provisioned for this purpose rather than using a personal email account -- appropriate for a client-facing production system, since access to a dedicated organizational account is not tied to any individual.
+ 
+### Setup
+ 
+```bash
+sudo apt install -y postfix mailutils
+```
+ 
+Configuration (`/etc/postfix/main.cf`):
+ 
+```
+relayhost = [mail.ofir.hr]:465
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+smtp_tls_wrappermode = yes
+smtp_tls_security_level = encrypt
+```
+ 
+Authentication credentials (`/etc/postfix/sasl_passwd`, excluded from version control):
+ 
+```
+[mail.ofir.hr]:465    <dedicated-mailbox>:<password>
+```
+ 
+```bash
+sudo postmap /etc/postfix/sasl_passwd
+sudo chmod 600 /etc/postfix/sasl_passwd /etc/postfix/sasl_passwd.db
+sudo systemctl enable --now postfix
+```
+ 
+**Port 465 requires explicit TLS wrapper mode.** Port 465 (SMTPS) uses implicit TLS — the connection is encrypted from the first byte — as opposed to port 587 (STARTTLS), which begins in plaintext and upgrades to TLS mid-connection. Postfix requires `smtp_tls_wrappermode = yes` for port 465, but this setting alone produced a configuration warning and failed deliveries (`relay=none, server unavailable`) until `smtp_tls_security_level = encrypt` was also set. Both parameters are required together for port 465; omitting either results in a delivery failure that is not obviously related to TLS configuration from the error message alone.
+ 
+### Validation
+ 
+```bash
+echo "Test message" | mail -s "Test" <recipient>
+sudo tail -20 /var/log/mail.log
+```
+ 
+A successful relay shows `status=sent (250 OK ...)` with `relay=mail.ofir.hr[...]:465` in the log -- confirming the message was accepted by the relay for final delivery.
+ 
 
-## Open item: mail delivery
-
-Mail delivery requires a mail transfer agent (Postfix) configured with an outbound SMTP relay. Rather than using a personal email account for this — inappropriate for a client-facing production system, since access to the account is not tied to the organization — a dedicated OFIR mailbox has been requested for this purpose. 
 ## NIS2 relevance
-
+ 
 Automated, multi-channel incident notification (mail and chat) with contextual enrichment (MITRE mapping, geolocation, prior-occurrence count) directly supports **Article 21.2.b (incident handling)** — ensuring detected events reach a human promptly and with enough context for triage, and **Article 23** notification-timeline compliance by minimizing detection-to-awareness delay.
-
+ 
 ## Outcome
-
-Seven active-response scripts refactored, deployed, and validated for configuration syntax and Mattermost delivery. Mail delivery is pending a dedicated mailbox (see [Open item: mail delivery](#open-item-mail-delivery)). Full end-to-end validation will follow once live MikroTik traffic is available.
-
+ 
+Seven active-response scripts refactored, deployed, and validated for configuration syntax, Mattermost delivery, and mail delivery. Recipient address(es) for alerts remain to be finalized (see [Open item: alert recipients](#open-item-alert-recipients)). Full end-to-end validation will follow once live MikroTik traffic is available.
+ 
 ---
-
+ 
 **Previous phase**: [05 — Detection Engineering](../05-detection-engineering/)
 **Next phase**: [07 — Maintenance Procedures](../07-maintenance-procedures/)
+ 
+ 
